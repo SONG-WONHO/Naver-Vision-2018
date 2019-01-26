@@ -12,14 +12,9 @@ import pickle
 import nsml
 import numpy as np
 
-from nsml import DATASET_PATH
-import keras
-from keras.models import Sequential
-from keras.layers import Dense, Dropout, Flatten, Activation
-from keras.layers import Conv2D, MaxPooling2D
-from keras.callbacks import ReduceLROnPlateau
 from keras import backend as K
-from data_loader import train_data_loader
+
+import util
 
 
 def bind_model(model):
@@ -33,10 +28,6 @@ def bind_model(model):
         print('model loaded!')
 
     def infer(queries, db):
-
-        # Query 개수: 195
-        # Reference(DB) 개수: 1,127
-        # Total (query + reference): 1,322
 
         queries, query_img, references, reference_img = preprocess(queries, db)
 
@@ -53,29 +44,56 @@ def bind_model(model):
         reference_img = reference_img.astype('float32')
         reference_img /= 255
 
-        get_feature_layer = K.function([model.layers[0].input] + [K.learning_phase()], [model.layers[-2].output])
+        get_feature_layer = K.function([model.layers[0].input] + [K.learning_phase()], [model.get_layer("block5_pool").output])
 
         print('inference start')
 
         # inference
-        query_vecs = get_feature_layer([query_img, 0])[0]
+        num = 10
 
-        # caching db output, db inference
-        db_output = './db_infer.pkl'
-        if os.path.exists(db_output):
-            with open(db_output, 'rb') as f:
-                reference_vecs = pickle.load(f)
-        else:
-            reference_vecs = get_feature_layer([reference_img, 0])[0]
-            with open(db_output, 'wb') as f:
-                pickle.dump(reference_vecs, f)
+        # query
+        idx = 1
+        query_vecs = np.empty((len(query_img), 7, 7, 512))
+        while idx * num <= len(query_img):
+            query_vecs[num*(idx-1):num*idx] = get_feature_layer([query_img[num*(idx-1):num*idx], 0])[0]
+            idx += 1
 
-        # l2 normalization
-        query_vecs = l2_normalize(query_vecs)
-        reference_vecs = l2_normalize(reference_vecs)
+        if num*(idx-1) != len(query_img):
+            query_vecs[num*(idx-1):] = get_feature_layer([query_img[num*(idx-1):], 0])[0]
 
-        # Calculate cosine similarity
-        sim_matrix = np.dot(query_vecs, reference_vecs.T)
+        # reference
+        idx = 1
+        reference_vecs = np.empty((len(reference_img), 7, 7, 512))
+        while idx * num <= len(reference_img):
+            reference_vecs[num*(idx-1):num*idx] = get_feature_layer([reference_img[num*(idx-1):num*idx], 0])[0]
+            idx += 1
+
+        if num*(idx-1) != len(reference_img):
+            reference_vecs[num*(idx-1):] = get_feature_layer([reference_img[num*(idx-1):], 0])[0]
+
+        # shape check
+        print("query vec shape: ", query_vecs.shape, " db vec shape: ", reference_vecs.shape)
+
+        # calculate r-mac
+        query_rmac = util.cal_rmac(query_vecs, 3)
+        ref_rmac = util.cal_rmac(reference_vecs, 3)
+
+        # l2 norm
+        query_rmac = query_rmac / util.l2_norm(query_rmac, 1)
+        ref_rmac = ref_rmac / util.l2_norm(ref_rmac, 1)
+
+        # sum regions
+        query_rmac = np.sum(query_rmac, axis=2)
+        ref_rmac = np.sum(ref_rmac, axis=2)
+
+        # l2 norm
+        query_rmac = query_rmac / np.linalg.norm(query_rmac, axis=1).reshape(-1, 1)
+        ref_rmac = ref_rmac / np.linalg.norm(ref_rmac, axis=1).reshape(-1, 1)
+
+        print(query_rmac.shape, ref_rmac.shape)
+
+        # calculate cosine similarity
+        sim_matrix = util.cal_cos_sim(query_rmac, ref_rmac)
 
         retrieval_results = {}
 
@@ -86,7 +104,8 @@ def bind_model(model):
 
             ranked_list = [k.split('/')[-1].split('.')[0] for (k, v) in sorted_sim_list]  # ranked list
 
-            retrieval_results[query] = ranked_list
+            retrieval_results[query] = ranked_list[:1000]
+
         print('done')
 
         return list(zip(range(len(retrieval_results)), retrieval_results.items()))
@@ -126,100 +145,28 @@ def preprocess(queries, db):
 if __name__ == '__main__':
     args = argparse.ArgumentParser()
 
-    # hyperparameters
-    args.add_argument('--epochs', type=int, default=5)
-    args.add_argument('--batch_size', type=int, default=128)
-
     # DONOTCHANGE: They are reserved for nsml
     args.add_argument('--mode', type=str, default='train', help='submit일때 해당값이 test로 설정됩니다.')
     args.add_argument('--iteration', type=str, default='0', help='fork 명령어를 입력할때의 체크포인트로 설정됩니다. 체크포인트 옵션을 안주면 마지막 wall time 의 model 을 가져옵니다.')
     args.add_argument('--pause', type=int, default=0, help='model 을 load 할때 1로 설정됩니다.')
     config = args.parse_args()
 
-    # training parameters
-    nb_epoch = config.epochs
-    batch_size = config.batch_size
-    num_classes = 1000
-    input_shape = (224, 224, 3)  # input image shape
-
-    """ Model """
-    model = Sequential()
-    model.add(Conv2D(32, (3, 3), padding='same', input_shape=input_shape))
-    model.add(Activation('relu'))
-    model.add(Conv2D(32, (3, 3)))
-    model.add(Activation('relu'))
-    model.add(MaxPooling2D(pool_size=(2, 2)))
-    model.add(Dropout(0.25))
-
-    model.add(Conv2D(64, (3, 3), padding='same'))
-    model.add(Activation('relu'))
-    model.add(Conv2D(64, (3, 3)))
-    model.add(Activation('relu'))
-    model.add(MaxPooling2D(pool_size=(2, 2)))
-    model.add(Dropout(0.25))
-
-    model.add(Flatten())
-    model.add(Dense(512))
-    model.add(Activation('relu'))
-    model.add(Dropout(0.5))
-    model.add(Dense(num_classes))
-    model.add(Activation('softmax'))
+    # base model architecture
+    base_model = "vgg16"
+    model = util.select_base_model(base_model)
+    # new architecture code here
     model.summary()
 
+    # bind model
     bind_model(model)
 
     if config.pause:
         nsml.paused(scope=locals())
 
-    bTrainmode = False
     if config.mode == 'train':
         bTrainmode = True
 
-        """ Initiate RMSprop optimizer """
-        opt = keras.optimizers.rmsprop(lr=0.00045, decay=1e-6)
-        model.compile(loss='categorical_crossentropy',
-                      optimizer=opt,
-                      metrics=['accuracy'])
-
-        """ Load data """
-        print('dataset path', DATASET_PATH)
-        output_path = ['./img_list.pkl', './label_list.pkl']
-        train_dataset_path = DATASET_PATH + '/train/train_data'
-
-        if nsml.IS_ON_NSML:
-            # Caching file
-            nsml.cache(train_data_loader, data_path=train_dataset_path, img_size=input_shape[:2],
-                       output_path=output_path)
-        else:
-            # local에서 실험할경우 dataset의 local-path 를 입력해주세요.
-            train_data_loader(train_dataset_path, input_shape[:2], output_path=output_path)
-
-        with open(output_path[0], 'rb') as img_f:
-            img_list = pickle.load(img_f)
-        with open(output_path[1], 'rb') as label_f:
-            label_list = pickle.load(label_f)
-
-        x_train = np.asarray(img_list)
-        labels = np.asarray(label_list)
-        y_train = keras.utils.to_categorical(labels, num_classes=num_classes)
-        x_train = x_train.astype('float32')
-        x_train /= 255
-        print(len(labels), 'train samples')
-
-        """ Callback """
-        monitor = 'acc'
-        reduce_lr = ReduceLROnPlateau(monitor=monitor, patience=3)
-
-        """ Training loop """
-        for epoch in range(nb_epoch):
-            res = model.fit(x_train, y_train,
-                            batch_size=batch_size,
-                            initial_epoch=epoch,
-                            epochs=epoch + 1,
-                            callbacks=[reduce_lr],
-                            verbose=1,
-                            shuffle=True)
-            print(res.history)
-            train_loss, train_acc = res.history['loss'][0], res.history['acc'][0]
-            nsml.report(summary=True, epoch=epoch, epoch_total=nb_epoch, loss=train_loss, acc=train_acc)
-            nsml.save(epoch)
+        # load weights
+        nsml.load(checkpoint=base_model, session=util.model_name2session(base_model))
+        nsml.save('saved')
+        exit()
