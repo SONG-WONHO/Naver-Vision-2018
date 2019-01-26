@@ -43,6 +43,7 @@ def model_name2session(base_model):
 
     return session
 
+
 def cal_mac(feature_vector):
     """
 
@@ -134,3 +135,5 @@ def cal_rmac(feature_vector, l):
 def l2_norm(feature_vector, dim):
     regions = feature_vector.shape[2]
     return np.reshape(np.linalg.norm(feature_vector, axis=dim), (-1, 1, regions))
+
+
