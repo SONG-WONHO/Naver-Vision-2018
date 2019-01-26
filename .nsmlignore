@@ -1,0 +1,8 @@
+__pycache__
+.git
+.github
+README.md
+.ipyb_checkpoints
+temp
+.gitignore
+v1
