@@ -8,6 +8,7 @@ import os
 import cv2
 import argparse
 import pickle
+import heapq
 
 import nsml
 import numpy as np
@@ -73,7 +74,8 @@ def bind_model(model):
 
         # shape check
         print("query vec shape: ", query_vecs.shape, " db vec shape: ", reference_vecs.shape)
-
+        """
+        r-mac
         # calculate r-mac
         query_rmac = util.cal_rmac(query_vecs, 3)
         ref_rmac = util.cal_rmac(reference_vecs, 3)
@@ -94,13 +96,27 @@ def bind_model(model):
 
         # calculate cosine similarity
         sim_matrix = util.cal_cos_sim(query_rmac, ref_rmac)
+        """
+
+        """
+        mac
+        """
+        query_mac = util.cal_mac(query_vecs)
+        ref_mac = util.cal_mac(reference_vecs)
+
+        # l2 norm
+        query_mac = query_mac / np.linalg.norm(query_mac, axis=1).reshape(-1, 1)
+        ref_mac = ref_mac / np.linalg.norm(ref_mac, axis=1).reshape(-1, 1)
+
+        # calculate cosine similarity
+        sim_matrix = util.cal_cos_sim(query_mac, ref_mac)
 
         retrieval_results = {}
 
         for (i, query) in enumerate(queries):
             query = query.split('/')[-1].split('.')[0]
-            sim_list = zip(references, sim_matrix[i].tolist())
-            sorted_sim_list = sorted(sim_list, key=lambda x: x[1], reverse=True)
+            sim_list = list(zip(references, sim_matrix[i].tolist()))
+            sorted_sim_list = heapq.nlargest(1000, sim_list, key=lambda x: x[1])
 
             ranked_list = [k.split('/')[-1].split('.')[0] for (k, v) in sorted_sim_list]  # ranked list
 
