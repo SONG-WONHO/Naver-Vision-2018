@@ -61,23 +61,6 @@ def cal_mac(feature_vector):
     return features
 
 
-def cal_cos_sim(query_vec, db_vec):
-    """
-
-    :param query_vec: k tensor
-    :param db_vec: k tensor
-    :return: cosine similarity
-    """
-    cos_sim = np.dot(query_vec, db_vec.T)
-    query_vec_norm = np.linalg.norm(query_vec, axis=1).reshape(-1, 1)
-    db_vec_norm = np.linalg.norm(db_vec, axis=1).reshape(1, -1)
-
-    cos_sim = cos_sim / query_vec_norm
-    cos_sim = cos_sim / db_vec_norm
-
-    return cos_sim
-
-
 def cal_rmac(feature_vector, l):
     """
 
@@ -130,6 +113,23 @@ def cal_rmac(feature_vector, l):
                 r_macs.append(cal_mac(feature_region).reshape(-1, channel, 1))
 
     return np.concatenate(r_macs, axis=2)
+
+
+def cal_cos_sim(query_vec, db_vec):
+    """
+
+    :param query_vec: k tensor
+    :param db_vec: k tensor
+    :return: cosine similarity
+    """
+    cos_sim = np.dot(query_vec, db_vec.T)
+    query_vec_norm = np.linalg.norm(query_vec, axis=1).reshape(-1, 1)
+    db_vec_norm = np.linalg.norm(db_vec, axis=1).reshape(1, -1)
+
+    cos_sim = cos_sim / query_vec_norm
+    cos_sim = cos_sim / db_vec_norm
+
+    return cos_sim
 
 
 def l2_norm(feature_vector, dim):
