@@ -141,8 +141,8 @@ if __name__ == '__main__':
 
     model = Model(inputs=model.layers[0].input, outputs=x)
 
-    for layer in model.layers[:-3]:
-        layer.trainable = False
+    # for layer in model.layers[:-3]:
+    #     layer.trainable = False
 
     model.summary()
 
@@ -155,8 +155,8 @@ if __name__ == '__main__':
     if config.mode == 'train':
         bTrainmode = True
 
-        """ Initiate Adam optimizer """
-        opt = keras.optimizers.Adam(lr=0.0001, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
+        """ Initiate RMSprop optimizer """
+        opt = keras.optimizers.rmsprop(lr=0.00045, decay=1e-6)
         model.compile(loss='categorical_crossentropy',
                       optimizer=opt,
                       metrics=['accuracy'])
