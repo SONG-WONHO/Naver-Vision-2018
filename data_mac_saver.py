@@ -121,12 +121,11 @@ if __name__ == '__main__':
     # calculate mac feature
     img_vecs = util.cal_mac(img_vecs)
 
-    print(img_vecs.shape)
-
-
-
-
+    # dump
+    with open('./img_mac_list.pkl', 'wb') as img_f:
+        pickle.dump(img_vecs, img_f)
+    with open('./label_info.pkl', 'wb') as label_f:
+        pickle.dump(label_info, label_f)
 
     print("done!")
-
     exit()
