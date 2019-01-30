@@ -12,8 +12,9 @@ def train_data_loader(data_path, img_size, output_path):
     label_list = []
     img_list = []
     label_idx = 0
-
+    i = 0
     for root, dirs, files in os.walk(data_path):
+        print(i)
         if not files:
             continue
         for filename in files:
@@ -22,16 +23,23 @@ def train_data_loader(data_path, img_size, output_path):
                 img = cv2.imread(img_path, 1)
                 img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
                 img = cv2.resize(img, img_size)
+                i+=1
             except:
                 continue
             label_list.append(label_idx)
             img_list.append(img)
         label_idx += 1
+        if i > 1000:
+            break
+
+    print("완료!")
 
     # write output file for caching
     with open(output_path[0], 'wb') as img_f:
-        pickle.dump(img_list, img_f)
-    with open(output_path[1], 'wb') as label_f:
+        pickle.dump(img_list[:35000], img_f)
+    with open(output_path[1], 'wb') as img_f:
+        pickle.dump(img_list[35000:], img_f)
+    with open(output_path[2], 'wb') as label_f:
         pickle.dump(label_list, label_f)
 
 
