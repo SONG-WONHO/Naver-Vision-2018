@@ -150,7 +150,7 @@ if __name__ == '__main__':
     triplet_images = np.array(triplet_images)
 
     # validation split
-    train_idx, val_idx = get_validation_idx(len(triplet_images), 0.1)
+    train_idx, val_idx = get_validation_idx(len(triplet_images), 0.5)
 
     triplet_images_val = triplet_images[val_idx]
     triplet_images = triplet_images[train_idx]
