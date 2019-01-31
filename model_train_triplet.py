@@ -183,14 +183,14 @@ if __name__ == '__main__':
     neg_dist = Lambda(lambda x: K.reshape(x, (-1, 1)))(Lambda(lambda x: K.sum(x, axis=-1))(Lambda(lambda x: K.square(x))(subtract([anchor_item_embedding, negative_item_embedding]))))
 
     # loss
-    basic_loss = Lambda(lambda x: x + 1)(subtract([pos_dist, neg_dist]))
+    basic_loss = Lambda(lambda x: x + 10)(subtract([pos_dist, neg_dist]))
     loss = Lambda(lambda x: K.maximum(x, 0.0))(basic_loss)
 
     # new model
     model = Model(inputs=[anchor_item_input, positive_item_input, negative_item_input], outputs=loss)
     model.summary()
 
-    bind_model(model)
+    bind_model(net)
 
     # hyper parameter
     batch_size = 128
