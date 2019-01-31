@@ -40,11 +40,6 @@ def bind_model(model):
         references = np.asarray(references)
         reference_img = np.asarray(reference_img)
 
-        query_img = query_img.astype('float32')
-        query_img /= 255
-        reference_img = reference_img.astype('float32')
-        reference_img /= 255
-
         get_feature_layer = K.function([model.layers[0].input] + [K.learning_phase()], [model.get_layer("block5_pool").output])
 
         print('inference start')
@@ -74,30 +69,6 @@ def bind_model(model):
 
         # shape check
         print("query vec shape: ", query_vecs.shape, " db vec shape: ", reference_vecs.shape)
-        """
-        r-mac
-        # calculate r-mac
-        query_rmac = util.cal_rmac(query_vecs, 3)
-        ref_rmac = util.cal_rmac(reference_vecs, 3)
-
-        # l2 norm
-        query_rmac = query_rmac / util.l2_norm(query_rmac, 1)
-        ref_rmac = ref_rmac / util.l2_norm(ref_rmac, 1)
-
-        # sum regions
-        query_rmac = np.sum(query_rmac, axis=2)
-        ref_rmac = np.sum(ref_rmac, axis=2)
-
-        # l2 norm
-        query_rmac = query_rmac / np.linalg.norm(query_rmac, axis=1).reshape(-1, 1)
-        ref_rmac = ref_rmac / np.linalg.norm(ref_rmac, axis=1).reshape(-1, 1)
-
-        print(query_rmac.shape, ref_rmac.shape)
-
-        # calculate cosine similarity
-        sim_matrix = util.cal_cos_sim(query_rmac, ref_rmac)
-        """
-
         """
         mac
         """
