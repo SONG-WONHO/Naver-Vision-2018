@@ -85,8 +85,8 @@ def bind_model(model):
         reference_vecs = reference_vecs / np.linalg.norm(reference_vecs, axis=1).reshape(-1, 1)
 
         # embedding
-        # query_vecs = model.predict(query_vecs)
-        # reference_vecs = model.predict(reference_vecs)
+        query_vecs = model.predict(query_vecs)
+        reference_vecs = model.predict(reference_vecs)
 
         # shape check
         print("query vec shape: ", query_vecs.shape, " db vec shape: ", reference_vecs.shape)
@@ -182,6 +182,6 @@ if __name__ == '__main__':
         bTrainmode = True
 
         # load weights
-        nsml.load(checkpoint='saved!', session='b1ackstone/ir_ph2/142')
+        nsml.load(checkpoint='400', session='b1ackstone/ir_ph2/156')
         nsml.save('saved')
         exit()
